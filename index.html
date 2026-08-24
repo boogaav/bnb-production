@@ -782,7 +782,8 @@
     for (const s of scenes) {
       const { ctx, pal, blobs, W, H } = s;
       const rect = s.cv.getBoundingClientRect();
-      if (rect.bottom < 0 || rect.top > innerHeight) continue; // offscreen: skip
+      // Skip offscreen frames while animating; the reduced-motion single pass paints everything.
+      if (!reduced && (rect.bottom < 0 || rect.top > innerHeight)) continue;
       ctx.globalCompositeOperation = "source-over";
       ctx.fillStyle = pal.bg;
       ctx.fillRect(0, 0, W, H);
