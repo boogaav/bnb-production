@@ -1,0 +1,631 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="B&amp;B Production is an AI creative studio making music videos, brand films, and shorts with generative video.">
+<title>B&B Production</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300;12..96,500;12..96,800&family=Archivo:wght@400;500;600&family=Spline+Sans+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ink: #F2EDE4;        /* bone */
+    --ink-dim: #8F877C;    /* ash */
+    --ground: #121110;     /* tungsten black */
+    --surface: #1B1917;    /* charcoal */
+    --line: #2A2724;
+    --rec: #E8402A;        /* signal red */
+    --display: "Bricolage Grotesque", "Archivo", system-ui, sans-serif;
+    --body: "Archivo", system-ui, -apple-system, sans-serif;
+    --mono: "Spline Sans Mono", "SF Mono", ui-monospace, monospace;
+  }
+
+  /* Deliberately single-theme: a screening room stays dark. Every surface painted explicitly. */
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  ::selection { background: var(--rec); color: var(--ground); }
+
+  a { color: inherit; text-decoration: none; }
+  a:focus-visible, button:focus-visible {
+    outline: 2px solid var(--rec);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 0 clamp(20px, 4vw, 48px); }
+
+  /* ---------- grain ---------- */
+  .grain {
+    position: fixed; inset: -50%;
+    width: 200%; height: 200%;
+    pointer-events: none;
+    z-index: 50;
+    opacity: .07;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* ---------- header ---------- */
+  header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 40;
+    background: color-mix(in srgb, var(--ground) 82%, transparent);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--line);
+  }
+  .bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px clamp(20px, 4vw, 48px);
+  }
+  .brand {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 17px;
+    letter-spacing: .04em;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .brand .dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--rec);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--rec) 70%, transparent);
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse { 50% { opacity: .35; } }
+  nav { display: flex; gap: clamp(16px, 3vw, 36px); }
+  nav a {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    transition: color .2s;
+  }
+  nav a:hover { color: var(--ink); }
+  @media (max-width: 640px) { nav a:not(:last-child) { display: none; } }
+
+  /* ---------- hero ---------- */
+  .hero {
+    min-height: 100svh;
+    display: flex; flex-direction: column; justify-content: flex-end;
+    padding-top: 120px; padding-bottom: clamp(32px, 5vh, 64px);
+    position: relative;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: var(--rec);
+    margin-bottom: 20px;
+  }
+  h1 {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: clamp(52px, 11vw, 148px);
+    line-height: .92;
+    letter-spacing: -.015em;
+    text-transform: uppercase;
+    text-wrap: balance;
+    margin: 0 0 28px;
+  }
+  h1 .machines { color: var(--ink-dim); }
+  .hero-sub {
+    max-width: 34em;
+    color: var(--ink-dim);
+    font-size: clamp(16px, 1.6vw, 19px);
+    margin-bottom: clamp(32px, 5vh, 56px);
+  }
+  .hero-sub strong { color: var(--ink); font-weight: 500; }
+
+  /* viewfinder */
+  .finder {
+    position: relative;
+    aspect-ratio: 2.39 / 1;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    overflow: hidden;
+  }
+  .finder canvas, .work-frame canvas {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    filter: blur(0.5px) saturate(1.05);
+  }
+  .finder .hud {
+    position: absolute; inset: 0;
+    padding: clamp(12px, 2vw, 22px);
+    display: flex; flex-direction: column; justify-content: space-between;
+    font-family: var(--mono);
+    font-size: clamp(10px, 1.2vw, 13px);
+    letter-spacing: .1em;
+    z-index: 2;
+  }
+  .hud-row { display: flex; justify-content: space-between; align-items: center; }
+  .rec {
+    display: inline-flex; align-items: center; gap: 8px;
+    color: var(--ink);
+  }
+  .rec::before {
+    content: "";
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--rec);
+    animation: pulse 1.2s steps(2) infinite;
+  }
+  .hud .dim { color: color-mix(in srgb, var(--ink) 55%, transparent); }
+  .corners span {
+    position: absolute; width: 18px; height: 18px;
+    border: 1px solid color-mix(in srgb, var(--ink) 45%, transparent);
+    z-index: 2;
+  }
+  .corners span:nth-child(1) { top: 10px; left: 10px; border-right: 0; border-bottom: 0; }
+  .corners span:nth-child(2) { top: 10px; right: 10px; border-left: 0; border-bottom: 0; }
+  .corners span:nth-child(3) { bottom: 10px; left: 10px; border-right: 0; border-top: 0; }
+  .corners span:nth-child(4) { bottom: 10px; right: 10px; border-left: 0; border-top: 0; }
+
+  /* ---------- sections ---------- */
+  section { padding: clamp(72px, 12vh, 140px) 0; }
+  .sec-head {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
+    border-top: 1px solid var(--line);
+    padding-top: 18px;
+    margin-bottom: clamp(36px, 6vh, 64px);
+  }
+  .sec-head h2 {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: clamp(30px, 4.4vw, 52px);
+    letter-spacing: -.01em;
+    text-transform: uppercase;
+    margin: 0;
+  }
+  .sec-head .tag {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    white-space: nowrap;
+  }
+
+  /* ---------- work ---------- */
+  .work-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(20px, 3vw, 36px);
+  }
+  .work { grid-column: span 1; cursor: pointer; }
+  .work.feature { grid-column: 1 / -1; }
+  @media (max-width: 720px) { .work { grid-column: 1 / -1; } }
+
+  .work-frame {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    overflow: hidden;
+    transition: border-color .3s;
+  }
+  .work.feature .work-frame { aspect-ratio: 2.39 / 1; }
+  @media (max-width: 720px) { .work.feature .work-frame { aspect-ratio: 16 / 9; } }
+  .work:hover .work-frame { border-color: color-mix(in srgb, var(--ink) 35%, var(--line)); }
+  .work-frame canvas { transition: transform .8s cubic-bezier(.2,.7,.2,1); }
+  .work:hover .work-frame canvas { transform: scale(1.035); }
+
+  .runtime {
+    position: absolute; right: 12px; bottom: 12px; z-index: 2;
+    font-family: var(--mono); font-size: 12px; letter-spacing: .08em;
+    background: color-mix(in srgb, var(--ground) 78%, transparent);
+    padding: 4px 9px;
+    color: var(--ink);
+  }
+  .play {
+    position: absolute; inset: 0; z-index: 2;
+    display: grid; place-items: center;
+    opacity: 0; transition: opacity .3s;
+  }
+  .work:hover .play { opacity: 1; }
+  .play span {
+    width: clamp(56px, 7vw, 80px); height: clamp(56px, 7vw, 80px);
+    border-radius: 50%;
+    display: grid; place-items: center;
+    background: color-mix(in srgb, var(--ground) 62%, transparent);
+    border: 1px solid color-mix(in srgb, var(--ink) 40%, transparent);
+    backdrop-filter: blur(6px);
+  }
+  .play svg { width: 22px; height: 22px; fill: var(--ink); margin-left: 3px; }
+
+  .slate {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 16px;
+    padding-top: 14px;
+  }
+  .slate h3 {
+    font-family: var(--display);
+    font-weight: 500;
+    font-size: clamp(19px, 2.2vw, 26px);
+    letter-spacing: .01em;
+    margin: 0;
+  }
+  .work.feature .slate h3 { font-size: clamp(24px, 3vw, 34px); font-weight: 800; }
+  .slate .meta {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    text-align: right;
+    white-space: nowrap;
+  }
+  .placeholder-note {
+    margin-top: clamp(28px, 4vh, 44px);
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: .06em;
+    color: var(--ink-dim);
+  }
+
+  /* ---------- studio ---------- */
+  .services {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    border-top: 1px solid var(--line);
+    border-left: 1px solid var(--line);
+  }
+  .service {
+    border-right: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    background: var(--ground);
+    padding: clamp(24px, 3vw, 36px);
+    min-height: 220px;
+    display: flex; flex-direction: column; justify-content: space-between; gap: 24px;
+    transition: background .3s;
+  }
+  .service:hover { background: var(--surface); }
+  .service h3 {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: clamp(19px, 2vw, 24px);
+    text-transform: uppercase;
+    letter-spacing: .01em;
+    margin: 0;
+  }
+  .service p { color: var(--ink-dim); font-size: 15px; margin: 0; }
+  .service .fmt {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--rec);
+  }
+
+  /* ---------- process ---------- */
+  .steps { display: grid; gap: 0; }
+  .step {
+    display: grid;
+    grid-template-columns: 80px 1fr 2fr;
+    gap: clamp(16px, 3vw, 40px);
+    align-items: baseline;
+    padding: clamp(22px, 3vh, 32px) 0;
+    border-top: 1px solid var(--line);
+  }
+  .step:last-child { border-bottom: 1px solid var(--line); }
+  @media (max-width: 720px) { .step { grid-template-columns: 60px 1fr; } .step p { grid-column: 2; } }
+  .step .n {
+    font-family: var(--mono); font-size: 13px; letter-spacing: .1em;
+    color: var(--rec);
+  }
+  .step h3 {
+    font-family: var(--display); font-weight: 800; text-transform: uppercase;
+    font-size: clamp(20px, 2.4vw, 28px); margin: 0;
+  }
+  .step p { color: var(--ink-dim); margin: 0; max-width: 32em; }
+
+  /* ---------- contact ---------- */
+  .contact { text-align: left; }
+  .contact h2 {
+    font-family: var(--display); font-weight: 800; text-transform: uppercase;
+    font-size: clamp(40px, 8vw, 104px);
+    line-height: .95; letter-spacing: -.015em;
+    margin: 0 0 32px;
+    text-wrap: balance;
+  }
+  .contact h2 a {
+    color: var(--rec);
+    transition: color .2s;
+  }
+  .contact h2 a:hover { color: var(--ink); }
+  .contact p { color: var(--ink-dim); max-width: 36em; }
+
+  footer {
+    border-top: 1px solid var(--line);
+    padding: 28px clamp(20px, 4vw, 48px);
+    display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    font-family: var(--mono); font-size: 11px; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--ink-dim);
+  }
+
+  /* reveal on scroll */
+  .reveal { opacity: 0; transform: translateY(24px); transition: opacity .8s ease, transform .8s cubic-bezier(.2,.7,.2,1); }
+  .reveal.in { opacity: 1; transform: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    * { animation: none !important; transition: none !important; }
+    .reveal { opacity: 1; transform: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="grain" aria-hidden="true"></div>
+
+<header>
+  <div class="bar">
+    <a class="brand" href="#top"><span class="dot" aria-hidden="true"></span>B&amp;B PRODUCTION</a>
+    <nav>
+      <a href="#work">Work</a>
+      <a href="#studio">Studio</a>
+      <a href="#process">Process</a>
+      <a href="#contact">Contact</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <div class="wrap">
+    <section class="hero" aria-label="Intro">
+      <p class="eyebrow">AI Creative Studio</p>
+      <h1>We direct<br><span class="machines">machines.</span></h1>
+      <p class="hero-sub"><strong>B&amp;B Production</strong> makes films with generative video &mdash; music videos, brand films, and shorts. The models render the frames. We do everything that makes them cinema: direction, taste, edit, grade.</p>
+      <div class="finder" role="img" aria-label="Live abstract showreel frame with camera viewfinder overlay">
+        <canvas data-scene="hero"></canvas>
+        <div class="corners" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+        <div class="hud" aria-hidden="true">
+          <div class="hud-row"><span class="rec">REC</span><span class="dim">A-CAM&nbsp;&nbsp;2.39:1</span></div>
+          <div class="hud-row"><span class="dim" id="tc">00:00:00:00</span><span class="dim">B&amp;B&nbsp;&middot;&nbsp;SHOWREEL_26</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="work" aria-label="Selected work">
+      <div class="sec-head reveal">
+        <h2>Selected Work</h2>
+        <span class="tag">2025 &mdash; 2026</span>
+      </div>
+      <div class="work-grid">
+        <article class="work feature reveal">
+          <div class="work-frame">
+            <canvas data-scene="afterglow"></canvas>
+            <div class="play" aria-hidden="true"><span><svg viewBox="0 0 24 24"><path d="M6 3.5v17l14-8.5z"/></svg></span></div>
+            <span class="runtime">03:12</span>
+          </div>
+          <div class="slate">
+            <h3>Afterglow</h3>
+            <p class="meta">Music video &middot; 4K &middot; BNB-014</p>
+          </div>
+        </article>
+
+        <article class="work reveal">
+          <div class="work-frame">
+            <canvas data-scene="staticbloom"></canvas>
+            <div class="play" aria-hidden="true"><span><svg viewBox="0 0 24 24"><path d="M6 3.5v17l14-8.5z"/></svg></span></div>
+            <span class="runtime">07:40</span>
+          </div>
+          <div class="slate">
+            <h3>Static Bloom</h3>
+            <p class="meta">Short film &middot; BNB-011</p>
+          </div>
+        </article>
+
+        <article class="work reveal">
+          <div class="work-frame">
+            <canvas data-scene="chrome"></canvas>
+            <div class="play" aria-hidden="true"><span><svg viewBox="0 0 24 24"><path d="M6 3.5v17l14-8.5z"/></svg></span></div>
+            <span class="runtime">00:45</span>
+          </div>
+          <div class="slate">
+            <h3>Chrome Orchard</h3>
+            <p class="meta">Brand film &middot; BNB-009</p>
+          </div>
+        </article>
+
+        <article class="work reveal">
+          <div class="work-frame">
+            <canvas data-scene="nightsignal"></canvas>
+            <div class="play" aria-hidden="true"><span><svg viewBox="0 0 24 24"><path d="M6 3.5v17l14-8.5z"/></svg></span></div>
+            <span class="runtime">01:30</span>
+          </div>
+          <div class="slate">
+            <h3>Night Signal</h3>
+            <p class="meta">Title sequence &middot; BNB-007</p>
+          </div>
+        </article>
+
+        <article class="work reveal">
+          <div class="work-frame">
+            <canvas data-scene="paperstorms"></canvas>
+            <div class="play" aria-hidden="true"><span><svg viewBox="0 0 24 24"><path d="M6 3.5v17l14-8.5z"/></svg></span></div>
+            <span class="runtime">00:59</span>
+          </div>
+          <div class="slate">
+            <h3>Paper Storms</h3>
+            <p class="meta">Vertical cut &middot; BNB-005</p>
+          </div>
+        </article>
+      </div>
+      <p class="placeholder-note reveal">// Frames above are live placeholders &mdash; swap in real stills &amp; embeds when the reel is ready.</p>
+    </section>
+
+    <section id="studio" aria-label="What we do">
+      <div class="sec-head reveal">
+        <h2>What We Do</h2>
+        <span class="tag">Capabilities</span>
+      </div>
+      <div class="services reveal">
+        <div class="service">
+          <div>
+            <p class="fmt">3&mdash;5 min &middot; 16:9</p>
+            <h3>Music Videos</h3>
+          </div>
+          <p>Full videos from a track and a treatment. Character consistency across shots, choreography with the beat, delivered ready for premiere.</p>
+        </div>
+        <div class="service">
+          <div>
+            <p class="fmt">15&mdash;60 sec &middot; Any ratio</p>
+            <h3>Brand Films</h3>
+          </div>
+          <p>Product worlds impossible to shoot &mdash; built, lit, and moved through in days, not months. Concept to master in one studio.</p>
+        </div>
+        <div class="service">
+          <div>
+            <p class="fmt">Shot-level &middot; Invisible</p>
+            <h3>AI VFX &amp; Post</h3>
+          </div>
+          <p>Shot replacement and generation inside real footage, cleanup, style-matched captions, recuts of existing videos into new formats.</p>
+        </div>
+        <div class="service">
+          <div>
+            <p class="fmt">Vertical &middot; Serialized</p>
+            <h3>Shorts &amp; Series</h3>
+          </div>
+          <p>Episodic vertical video at feed pace &mdash; one visual world, dozens of cuts, engineered to hold attention past the first second.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="process" aria-label="Process">
+      <div class="sec-head reveal">
+        <h2>How It Works</h2>
+        <span class="tag">Brief &rarr; Master</span>
+      </div>
+      <div class="steps">
+        <div class="step reveal">
+          <span class="n">01</span>
+          <h3>Treatment</h3>
+          <p>We take your brief, track, or script and return a written treatment: world, references, shot list. You approve before a single frame is rendered.</p>
+        </div>
+        <div class="step reveal">
+          <span class="n">02</span>
+          <h3>Generation</h3>
+          <p>We direct the models &mdash; hundreds of takes across the strongest video systems, keeping characters, light, and world consistent shot to shot.</p>
+        </div>
+        <div class="step reveal">
+          <span class="n">03</span>
+          <h3>Edit &amp; Grade</h3>
+          <p>The real work. Selects, rhythm, sound, color. This is where generated takes stop looking generated and start looking directed.</p>
+        </div>
+        <div class="step reveal">
+          <span class="n">04</span>
+          <h3>Delivery</h3>
+          <p>Masters in every ratio you need &mdash; 16:9 hero, verticals, cutdowns &mdash; with revisions handled in hours because the set never closes.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="contact" class="contact" aria-label="Contact">
+      <div class="sec-head reveal">
+        <h2 style="font-size:inherit; font-family:var(--mono); font-weight:400; letter-spacing:.18em; text-transform:uppercase; font-size:12px; color:var(--ink-dim);">Now booking</h2>
+        <span class="tag">Worldwide &middot; Remote</span>
+      </div>
+      <h2 class="reveal">Tell us what<br>you're making. <a href="mailto:boogaav@gmail.com">Write&nbsp;in&nbsp;&rarr;</a></h2>
+      <p class="reveal">Send a track, a script, or three sentences of an idea. You'll get a treatment and a quote back &mdash; usually within 48 hours.</p>
+    </section>
+  </div>
+</main>
+
+<footer>
+  <span>&copy; 2026 B&amp;B Production</span>
+  <span>Directed by humans &middot; Rendered by machines</span>
+</footer>
+
+<script>
+(() => {
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ---- scroll reveals ---- */
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+  }, { threshold: 0.12 });
+  document.querySelectorAll(".reveal").forEach(el => io.observe(el));
+
+  /* ---- running timecode ---- */
+  const tc = document.getElementById("tc");
+  let frames = 0;
+  if (tc && !reduced) {
+    setInterval(() => {
+      frames = (frames + 1) % (24 * 60 * 60 * 24);
+      const f = frames % 24, s = (frames / 24 | 0) % 60, m = (frames / 1440 | 0) % 60, h = frames / 86400 | 0;
+      const p = n => String(n).padStart(2, "0");
+      tc.textContent = `${p(h)}:${p(m)}:${p(s)}:${p(f)}`;
+    }, 1000 / 24);
+  }
+
+  /* ---- generative "footage" ----
+     Each frame gets drifting light blobs in its own palette, drawn at low
+     res and upscaled &mdash; reads as abstract motion stills, cheap to animate. */
+  const palettes = {
+    hero:        { bg: "#141210", cols: ["#E8402A", "#D9A441", "#3B2F2A"] },
+    afterglow:   { bg: "#160F16", cols: ["#C6386E", "#7A3BD9", "#E8A33D"] },
+    staticbloom: { bg: "#0F1414", cols: ["#3DA688", "#B8C4B0", "#27404A"] },
+    chrome:      { bg: "#131316", cols: ["#8FA3C4", "#D8DCE4", "#40506E"] },
+    nightsignal: { bg: "#100F14", cols: ["#E8402A", "#3B4A8C", "#1B1E33"] },
+    paperstorms: { bg: "#171310", cols: ["#D9A441", "#E4D7C2", "#6E4A2E"] },
+  };
+
+  const scenes = [];
+  document.querySelectorAll("canvas[data-scene]").forEach((cv, idx) => {
+    const pal = palettes[cv.dataset.scene] || palettes.hero;
+    const W = 320, H = 180;
+    cv.width = W; cv.height = H;
+    const blobs = Array.from({ length: 5 }, (_, i) => ({
+      c: pal.cols[i % pal.cols.length],
+      r: 55 + ((i * 37 + idx * 13) % 70),
+      ax: 0.35 + ((i * 29) % 50) / 100,
+      ay: 0.22 + ((i * 17) % 40) / 100,
+      px: (i * 71 + idx * 31) % 100,
+      py: (i * 43 + idx * 57) % 100,
+      sp: 0.00012 + ((i * 7 + idx * 3) % 10) * 0.00004,
+    }));
+    scenes.push({ cv, ctx: cv.getContext("2d"), pal, blobs, W, H });
+  });
+
+  function draw(t) {
+    for (const s of scenes) {
+      const { ctx, pal, blobs, W, H } = s;
+      const rect = s.cv.getBoundingClientRect();
+      if (rect.bottom < 0 || rect.top > innerHeight) continue; // offscreen: skip
+      ctx.globalCompositeOperation = "source-over";
+      ctx.fillStyle = pal.bg;
+      ctx.fillRect(0, 0, W, H);
+      ctx.globalCompositeOperation = "lighter";
+      for (const b of blobs) {
+        const x = W / 2 + Math.sin(t * b.sp + b.px) * W * b.ax * 0.5;
+        const y = H / 2 + Math.cos(t * b.sp * 1.3 + b.py) * H * b.ay * 0.6;
+        const g = ctx.createRadialGradient(x, y, 0, x, y, b.r);
+        g.addColorStop(0, b.c + "70");
+        g.addColorStop(1, b.c + "00");
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(x, y, b.r, 0, 7);
+        ctx.fill();
+      }
+      /* letterbox vignette */
+      ctx.globalCompositeOperation = "source-over";
+      const v = ctx.createLinearGradient(0, 0, 0, H);
+      v.addColorStop(0, "rgba(0,0,0,.45)");
+      v.addColorStop(0.25, "rgba(0,0,0,0)");
+      v.addColorStop(0.75, "rgba(0,0,0,0)");
+      v.addColorStop(1, "rgba(0,0,0,.45)");
+      ctx.fillStyle = v;
+      ctx.fillRect(0, 0, W, H);
+    }
+    if (!reduced) requestAnimationFrame(draw);
+  }
+  draw(reduced ? 40000 : performance.now());
+})();
+</script>
+
+</body>
+</html>
