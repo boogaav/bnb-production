@@ -132,7 +132,7 @@
     border: 1px solid var(--line);
     overflow: hidden;
   }
-  .finder canvas, .work-frame canvas {
+  .finder canvas, .work-frame canvas, .person-frame canvas {
     position: absolute; inset: 0;
     width: 100%; height: 100%;
     filter: blur(0.5px) saturate(1.05);
@@ -322,6 +322,55 @@
   }
   .step p { color: var(--ink-dim); margin: 0; max-width: 32em; }
 
+  /* ---------- about ---------- */
+  .duo {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(20px, 3vw, 36px);
+  }
+  @media (max-width: 720px) { .duo { grid-template-columns: 1fr; } }
+  .person {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    padding: clamp(20px, 3vw, 32px);
+    display: flex; flex-direction: column; gap: 14px;
+    transition: border-color .3s;
+  }
+  a.person:hover { border-color: color-mix(in srgb, var(--ink) 35%, var(--line)); }
+  .person-frame {
+    position: relative;
+    aspect-ratio: 21 / 9;
+    background: #000;
+    border: 1px solid var(--line);
+    overflow: hidden;
+  }
+  .person h3 {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: clamp(26px, 3.2vw, 38px);
+    text-transform: uppercase;
+    letter-spacing: .01em;
+    margin: 0;
+  }
+  .person .role {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--rec);
+    margin: 0;
+  }
+  .person .bio { color: var(--ink-dim); font-size: 15px; margin: 0; flex: 1; }
+  .person .plink {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    transition: color .2s;
+  }
+  a.person:hover .plink { color: var(--ink); }
+
   /* ---------- contact ---------- */
   .contact { text-align: left; }
   .contact h2 {
@@ -444,6 +493,7 @@
       <a href="#work">Work</a>
       <a href="#studio">Studio</a>
       <a href="#process">Process</a>
+      <a href="#about">About</a>
       <a href="#contact">Contact</a>
     </nav>
   </div>
@@ -636,6 +686,29 @@
       </div>
     </section>
 
+    <section id="about" aria-label="About us">
+      <div class="sec-head reveal">
+        <h2>About Us</h2>
+        <span class="tag">Two of us &middot; One studio</span>
+      </div>
+      <div class="duo">
+        <a class="person reveal" href="https://booga.me">
+          <div class="person-frame"><canvas data-scene="booga"></canvas></div>
+          <h3>Booga</h3>
+          <p class="role">Soundtrack &middot; Story &middot; Narrative</p>
+          <p class="bio">Writes the story before a single frame is rendered &mdash; the music direction, the narrative arc, the reason a video means something.</p>
+          <span class="plink">booga.me &rarr;</span>
+        </a>
+        <div class="person reveal">
+          <div class="person-frame"><canvas data-scene="giang"></canvas></div>
+          <h3>Giang</h3>
+          <p class="role">Creatives &middot; Production</p>
+          <p class="bio">Runs the craft &mdash; look development, generation, edit and grade, and the production line that turns a treatment into a master.</p>
+          <span class="plink"><a href="#chat" style="color:inherit;">Ask for Giang on the Direct Line &uarr;</a></span>
+        </div>
+      </div>
+    </section>
+
     <section id="contact" class="contact" aria-label="Contact">
       <div class="sec-head reveal">
         <h2 style="font-size:inherit; font-family:var(--mono); font-weight:400; letter-spacing:.18em; text-transform:uppercase; font-size:12px; color:var(--ink-dim);">Now booking</h2>
@@ -684,6 +757,8 @@
     chrome:      { bg: "#131316", cols: ["#8FA3C4", "#D8DCE4", "#40506E"] },
     nightsignal: { bg: "#100F14", cols: ["#E8402A", "#3B4A8C", "#1B1E33"] },
     paperstorms: { bg: "#171310", cols: ["#D9A441", "#E4D7C2", "#6E4A2E"] },
+    booga:       { bg: "#171210", cols: ["#D9A441", "#E8402A", "#6E4A2E"] },
+    giang:       { bg: "#101416", cols: ["#3DA688", "#8FA3C4", "#27404A"] },
   };
 
   const scenes = [];
