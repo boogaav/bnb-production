@@ -388,16 +388,38 @@
   }
   #chat-send:hover { background: #fff; }
   #chat-send:disabled { opacity: .5; cursor: wait; }
-  #rec-btn {
-    width: 47px; flex: 0 0 47px; border-radius: 50%;
+  #rec-btn, #video-rec {
+    width: 47px; height: 47px; flex: 0 0 47px; border-radius: 50%;
     border: 1px solid var(--line); background: var(--ground);
-    display: none; place-items: center; cursor: pointer;
+    place-items: center; cursor: pointer; display: grid;
   }
+  #rec-btn { display: none; }
   .voice-mode #rec-btn { display: grid; }
-  #rec-btn .rec-dot { width: 15px; height: 15px; border-radius: 50%; background: var(--rec); transition: border-radius .2s; }
-  #rec-btn.recording { border-color: var(--rec); box-shadow: 0 0 14px color-mix(in srgb, var(--rec) 45%, transparent); }
-  #rec-btn.recording .rec-dot { border-radius: 3px; animation: pulse 1.2s steps(2) infinite; }
+  #rec-btn .rec-dot, #video-rec .rec-dot { width: 15px; height: 15px; border-radius: 50%; background: var(--rec); transition: border-radius .2s; }
+  #rec-btn.recording, #video-rec.recording { border-color: var(--rec); box-shadow: 0 0 14px color-mix(in srgb, var(--rec) 45%, transparent); }
+  #rec-btn.recording .rec-dot, #video-rec.recording .rec-dot { border-radius: 3px; animation: pulse 1.2s steps(2) infinite; }
   .chat-hint { font-family: var(--mono); font-size: 11px; letter-spacing: .06em; color: var(--ink-dim); }
+
+  /* video mode */
+  .video-stage { position: relative; aspect-ratio: 16 / 9; background: #000; border: 1px solid var(--line); overflow: hidden; }
+  .video-stage video { width: 100%; height: 100%; object-fit: cover; display: block; background: #000; }
+  .vf-live { position: absolute; top: 12px; left: 14px; z-index: 2; font-family: var(--mono); font-size: 12px; letter-spacing: .1em; }
+  .vf-timer {
+    position: absolute; top: 12px; right: 14px; z-index: 2;
+    font-family: var(--mono); font-size: 12px; letter-spacing: .08em; color: var(--ink);
+    background: color-mix(in srgb, var(--ground) 70%, transparent); padding: 3px 8px;
+  }
+  .video-row { display: none; }
+  .video-mode .video-row { display: flex; align-items: center; }
+  .video-mode .text-row { display: none; }
+  .video-state { flex: 1; min-width: 0; font-family: var(--mono); font-size: 12px; letter-spacing: .06em; color: var(--ink-dim); }
+  .vbtn { font-family: var(--mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; padding: 13px 18px; cursor: pointer; }
+  #video-send { background: var(--ink); color: var(--ground); border: 0; }
+  #video-send:hover { background: #fff; }
+  #video-send:disabled { opacity: .5; cursor: wait; }
+  #video-retake { background: transparent; color: var(--ink-dim); border: 1px solid var(--line); }
+  #video-retake:hover { color: var(--ink); }
+  [hidden] { display: none !important; }
 
   /* reveal on scroll */
   .reveal { opacity: 0; transform: translateY(24px); transition: opacity .8s ease, transform .8s cubic-bezier(.2,.7,.2,1); }
@@ -455,9 +477,21 @@
         <form class="chat-controls" id="chat-form">
           <div class="modes" role="group" aria-label="Input mode">
             <button type="button" class="mode active" id="mode-type">Type</button>
-            <button type="button" class="mode" id="mode-voice">Record voice</button>
+            <button type="button" class="mode" id="mode-voice">Voice</button>
+            <button type="button" class="mode" id="mode-video">Video</button>
           </div>
-          <div class="chat-row">
+          <div class="video-stage" id="video-stage" hidden>
+            <video id="cam" autoplay muted playsinline></video>
+            <span class="rec vf-live" id="vf-live" hidden>REC</span>
+            <span class="vf-timer" id="vf-timer" hidden>0:00 / 1:00</span>
+          </div>
+          <div class="chat-row video-row">
+            <button type="button" id="video-rec" aria-label="Start or stop video recording"><span class="rec-dot"></span></button>
+            <span class="video-state" id="video-state">Tap the red button to record &mdash; up to 60 seconds.</span>
+            <button type="button" class="vbtn" id="video-retake" hidden>Retake</button>
+            <button type="button" class="vbtn" id="video-send" hidden>Send video</button>
+          </div>
+          <div class="chat-row text-row">
             <button type="button" id="rec-btn" aria-label="Start or stop voice recording"><span class="rec-dot"></span></button>
             <input id="chat-input" type="text" maxlength="2000" placeholder="Describe your project&hellip;" autocomplete="off">
             <button type="submit" id="chat-send">Send</button>
@@ -760,20 +794,154 @@
 
   form.addEventListener("submit", (e) => {
     e.preventDefault();
+    if (mode === "video") return;
     if (recognizing) stopRec();
     send(input.value);
   });
 
-  /* mode switcher */
-  function setMode(voice) {
-    form.classList.toggle("voice-mode", voice);
-    modeVoice.classList.toggle("active", voice);
-    modeType.classList.toggle("active", !voice);
-    input.placeholder = voice ? "Tap the red button and talk\u2026" : "Describe your project\u2026";
-    if (!voice && recognizing) stopRec();
+  /* mode switcher: type / voice / video */
+  const modeVideo = document.getElementById("mode-video");
+  const videoStage = document.getElementById("video-stage");
+  const cam = document.getElementById("cam");
+  const vfLive = document.getElementById("vf-live");
+  const vfTimer = document.getElementById("vf-timer");
+  const videoRec = document.getElementById("video-rec");
+  const videoState = document.getElementById("video-state");
+  const videoSend = document.getElementById("video-send");
+  const videoRetake = document.getElementById("video-retake");
+
+  let mode = "type";
+  function setMode(m) {
+    mode = m;
+    if (m !== "voice" && recognizing) stopRec();
+    if (m !== "video") stopCamera();
+    form.classList.toggle("voice-mode", m === "voice");
+    form.classList.toggle("video-mode", m === "video");
+    videoStage.hidden = m !== "video";
+    modeType.classList.toggle("active", m === "type");
+    modeVoice.classList.toggle("active", m === "voice");
+    modeVideo.classList.toggle("active", m === "video");
+    input.placeholder = m === "voice" ? "Tap the red button and talk\u2026" : "Describe your project\u2026";
+    if (m === "video") startCamera();
   }
-  modeType.addEventListener("click", () => setMode(false));
-  modeVoice.addEventListener("click", () => setMode(true));
+  modeType.addEventListener("click", () => setMode("type"));
+  modeVoice.addEventListener("click", () => setMode("voice"));
+  modeVideo.addEventListener("click", () => setMode("video"));
+
+  /* video messages */
+  let camStream = null, vRec = null, vChunks = [], vBlob = null, vMime = "";
+  let vSecs = 0, vTicker = null, vRecording = false;
+
+  const camSupported = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+  if (!camSupported) {
+    modeVideo.disabled = true;
+    modeVideo.title = "Video recording needs a modern browser with camera access";
+  }
+
+  function fmtSecs(s) { return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
+  function stopTicker() { clearInterval(vTicker); vTicker = null; }
+
+  async function startCamera() {
+    resetVideoUI();
+    if (camStream) { cam.srcObject = camStream; return; }
+    videoState.textContent = "Waiting for camera permission\u2026";
+    try {
+      camStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user", width: { ideal: 1280 } },
+        audio: true,
+      });
+      if (mode !== "video") { stopCamera(); return; }
+      cam.srcObject = camStream;
+      videoState.textContent = "Tap the red button to record \u2014 up to 60 seconds.";
+    } catch (e) {
+      videoState.textContent = "Camera blocked \u2014 allow access in the address bar, or switch to Type.";
+    }
+  }
+  function stopCamera() {
+    if (vRecording) stopVideoRec();
+    if (camStream) { camStream.getTracks().forEach((t) => t.stop()); camStream = null; }
+    cam.srcObject = null;
+    stopTicker();
+  }
+  function resetVideoUI() {
+    videoSend.hidden = true; videoRetake.hidden = true;
+    vfTimer.hidden = true; vfLive.hidden = true;
+    if (cam.src) { URL.revokeObjectURL(cam.src); cam.removeAttribute("src"); }
+    cam.controls = false; cam.muted = true;
+    vBlob = null;
+  }
+
+  function startVideoRec() {
+    if (!camStream || vRecording) return;
+    vChunks = []; vBlob = null; vSecs = 0;
+    vMime = MediaRecorder.isTypeSupported("video/mp4") ? "video/mp4"
+      : MediaRecorder.isTypeSupported("video/webm;codecs=vp8,opus") ? "video/webm;codecs=vp8,opus"
+      : "video/webm";
+    try {
+      vRec = new MediaRecorder(camStream, { mimeType: vMime, videoBitsPerSecond: 1500000, audioBitsPerSecond: 96000 });
+    } catch (e) {
+      vRec = new MediaRecorder(camStream);
+      vMime = vRec.mimeType || "video/webm";
+    }
+    vRec.ondataavailable = (e) => { if (e.data.size) vChunks.push(e.data); };
+    vRec.onstop = () => {
+      vRecording = false;
+      stopTicker();
+      videoRec.classList.remove("recording");
+      vfLive.hidden = true;
+      vBlob = new Blob(vChunks, { type: vMime.split(";")[0] });
+      cam.srcObject = null;
+      cam.src = URL.createObjectURL(vBlob);
+      cam.muted = false; cam.controls = true;
+      videoSend.hidden = false; videoRetake.hidden = false;
+      videoState.textContent = "Review your take, then send it.";
+    };
+    vRec.start();
+    vRecording = true;
+    videoRec.classList.add("recording");
+    vfLive.hidden = false; vfTimer.hidden = false;
+    vfTimer.textContent = "0:00 / 1:00";
+    vTicker = setInterval(() => {
+      vSecs++;
+      vfTimer.textContent = fmtSecs(vSecs) + " / 1:00";
+      if (vSecs >= 60) stopVideoRec();
+    }, 1000);
+    videoState.textContent = "Recording \u2014 tap again to stop.";
+  }
+  function stopVideoRec() { if (vRec && vRecording) vRec.stop(); }
+
+  videoRec.addEventListener("click", () => (vRecording ? stopVideoRec() : startVideoRec()));
+  videoRetake.addEventListener("click", () => { resetVideoUI(); startCamera(); });
+
+  videoSend.addEventListener("click", async () => {
+    if (!vBlob || videoSend.disabled) return;
+    videoSend.disabled = true;
+    videoState.textContent = "Uploading\u2026";
+    const secs = vSecs;
+    const blob = vBlob;
+    const type = vMime.split(";")[0];
+    bubble("user", "\ud83c\udfa5 Video message (" + fmtSecs(secs) + ")");
+    const pending = bubble("bot pending", "one moment\u2026");
+    try {
+      const res = await fetch(CHAT_URL + "/video?session=" + session + "&d=" + secs, {
+        method: "POST",
+        headers: { "content-type": type },
+        body: blob,
+      });
+      const data = await res.json();
+      pending.remove();
+      if (res.ok && data.reply) bubble("bot", data.reply);
+      else bubble("bot error", data.error || "Something went wrong - try again, or message us on Telegram: @bandbchatbot");
+    } catch (err) {
+      pending.remove();
+      const el = bubble("bot error", "");
+      el.innerHTML = 'Live chat runs on the deployed site. Open <a href="https://boogaav.github.io/bnb-production/">the live page</a> or message <a href="https://t.me/bandbchatbot">@bandbchatbot</a>.';
+    }
+    videoSend.disabled = false;
+    resetVideoUI();
+    startCamera();
+    videoState.textContent = "Sent. Tap the red button to record another.";
+  });
 
   /* voice via browser speech recognition */
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
