@@ -346,6 +346,59 @@
     text-transform: uppercase; color: var(--ink-dim);
   }
 
+  /* ---------- direct line (chat) ---------- */
+  .chatbox { background: var(--surface); border: 1px solid var(--line); }
+  .chat-thread {
+    padding: clamp(16px, 2.5vw, 24px);
+    display: flex; flex-direction: column; gap: 14px;
+    max-height: 420px; overflow-y: auto;
+  }
+  .bubble { max-width: 78%; font-size: 15px; line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
+  .bubble.user {
+    align-self: flex-end;
+    background: var(--ground); border: 1px solid var(--line);
+    padding: 10px 14px;
+  }
+  .bubble.bot {
+    align-self: flex-start;
+    border-left: 2px solid var(--rec);
+    padding: 2px 0 2px 14px;
+  }
+  .bubble.bot.pending { color: var(--ink-dim); font-family: var(--mono); font-size: 12px; letter-spacing: .08em; }
+  .bubble.bot.error { border-left-color: var(--ink-dim); color: var(--ink-dim); }
+  .bubble.bot.error a { color: var(--ink); border-bottom: 1px solid var(--rec); }
+  .chat-controls { border-top: 1px solid var(--line); padding: 14px clamp(16px, 2.5vw, 24px) 18px; display: flex; flex-direction: column; gap: 12px; }
+  .modes { display: inline-flex; border: 1px solid var(--line); width: max-content; }
+  .mode {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+    background: transparent; color: var(--ink-dim); border: 0; padding: 8px 16px; cursor: pointer;
+  }
+  .mode.active { background: var(--ink); color: var(--ground); }
+  .mode:disabled { opacity: .4; cursor: not-allowed; }
+  .chat-row { display: flex; gap: 10px; align-items: stretch; }
+  #chat-input {
+    flex: 1; min-width: 0;
+    background: var(--ground); border: 1px solid var(--line); color: var(--ink);
+    padding: 12px 14px; font-family: var(--body); font-size: 15px;
+  }
+  #chat-input:focus { outline: 2px solid var(--rec); outline-offset: 1px; }
+  #chat-send {
+    font-family: var(--mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase;
+    background: var(--ink); color: var(--ground); border: 0; padding: 0 22px; cursor: pointer;
+  }
+  #chat-send:hover { background: #fff; }
+  #chat-send:disabled { opacity: .5; cursor: wait; }
+  #rec-btn {
+    width: 47px; flex: 0 0 47px; border-radius: 50%;
+    border: 1px solid var(--line); background: var(--ground);
+    display: none; place-items: center; cursor: pointer;
+  }
+  .voice-mode #rec-btn { display: grid; }
+  #rec-btn .rec-dot { width: 15px; height: 15px; border-radius: 50%; background: var(--rec); transition: border-radius .2s; }
+  #rec-btn.recording { border-color: var(--rec); box-shadow: 0 0 14px color-mix(in srgb, var(--rec) 45%, transparent); }
+  #rec-btn.recording .rec-dot { border-radius: 3px; animation: pulse 1.2s steps(2) infinite; }
+  .chat-hint { font-family: var(--mono); font-size: 11px; letter-spacing: .06em; color: var(--ink-dim); }
+
   /* reveal on scroll */
   .reveal { opacity: 0; transform: translateY(24px); transition: opacity .8s ease, transform .8s cubic-bezier(.2,.7,.2,1); }
   .reveal.in { opacity: 1; transform: none; }
@@ -365,6 +418,7 @@
   <div class="bar">
     <a class="brand" href="#top"><span class="dot" aria-hidden="true"></span>B&amp;B PRODUCTION</a>
     <nav>
+      <a href="#chat">Chat</a>
       <a href="#work">Work</a>
       <a href="#studio">Studio</a>
       <a href="#process">Process</a>
@@ -386,6 +440,30 @@
           <div class="hud-row"><span class="rec">REC</span><span class="dim">A-CAM&nbsp;&nbsp;2.39:1</span></div>
           <div class="hud-row"><span class="dim" id="tc">00:00:00:00</span><span class="dim">B&amp;B&nbsp;&middot;&nbsp;SHOWREEL_26</span></div>
         </div>
+      </div>
+    </section>
+
+    <section id="chat" aria-label="Chat with the studio">
+      <div class="sec-head reveal">
+        <h2>Direct Line</h2>
+        <span class="tag">AI producer &middot; answers now</span>
+      </div>
+      <div class="chatbox reveal">
+        <div class="chat-thread" id="chat-thread" aria-live="polite">
+          <div class="bubble bot">Tell us what you're making &mdash; a track, a script, or three sentences of an idea. I'll tell you how we'd shoot it.</div>
+        </div>
+        <form class="chat-controls" id="chat-form">
+          <div class="modes" role="group" aria-label="Input mode">
+            <button type="button" class="mode active" id="mode-type">Type</button>
+            <button type="button" class="mode" id="mode-voice">Record voice</button>
+          </div>
+          <div class="chat-row">
+            <button type="button" id="rec-btn" aria-label="Start or stop voice recording"><span class="rec-dot"></span></button>
+            <input id="chat-input" type="text" maxlength="2000" placeholder="Describe your project&hellip;" autocomplete="off">
+            <button type="submit" id="chat-send">Send</button>
+          </div>
+          <p class="chat-hint" id="chat-hint">Answered by our AI producer, trained on how the studio works. Prefer Telegram? <a href="https://t.me/bandbchatbot" style="color:var(--ink);">@bandbchatbot</a></p>
+        </form>
       </div>
     </section>
 
@@ -624,6 +702,127 @@
     if (!reduced) requestAnimationFrame(draw);
   }
   draw(reduced ? 40000 : performance.now());
+
+  /* ---- direct line chat ---- */
+  const CHAT_URL = "https://bnb-brain.boogaav.workers.dev/chat";
+  const thread = document.getElementById("chat-thread");
+  const form = document.getElementById("chat-form");
+  const input = document.getElementById("chat-input");
+  const sendBtn = document.getElementById("chat-send");
+  const recBtn = document.getElementById("rec-btn");
+  const modeType = document.getElementById("mode-type");
+  const modeVoice = document.getElementById("mode-voice");
+  const hint = document.getElementById("chat-hint");
+  const defaultHint = hint.innerHTML;
+
+  let session = localStorage.getItem("bnb_chat_session");
+  if (!session) {
+    session = crypto.randomUUID();
+    localStorage.setItem("bnb_chat_session", session);
+  }
+
+  function bubble(cls, text) {
+    const el = document.createElement("div");
+    el.className = "bubble " + cls;
+    el.textContent = text;
+    thread.appendChild(el);
+    thread.scrollTop = thread.scrollHeight;
+    return el;
+  }
+
+  async function send(message) {
+    if (!message.trim() || sendBtn.disabled) return;
+    bubble("user", message.trim());
+    input.value = "";
+    sendBtn.disabled = true;
+    const pending = bubble("bot pending", "one moment\u2026");
+    try {
+      const res = await fetch(CHAT_URL, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ session, message: message.trim() }),
+      });
+      const data = await res.json();
+      pending.remove();
+      if (res.ok && data.reply) {
+        bubble("bot", data.reply);
+      } else {
+        bubble("bot error", data.error || "Something went wrong - try again, or message us on Telegram: @bandbchatbot");
+      }
+    } catch (err) {
+      pending.remove();
+      const el = bubble("bot error", "");
+      el.innerHTML = 'Live chat runs on the deployed site. Open <a href="https://boogaav.github.io/bnb-production/">the live page</a> or message <a href="https://t.me/bandbchatbot">@bandbchatbot</a>.';
+    }
+    sendBtn.disabled = false;
+    input.focus();
+  }
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (recognizing) stopRec();
+    send(input.value);
+  });
+
+  /* mode switcher */
+  function setMode(voice) {
+    form.classList.toggle("voice-mode", voice);
+    modeVoice.classList.toggle("active", voice);
+    modeType.classList.toggle("active", !voice);
+    input.placeholder = voice ? "Tap the red button and talk\u2026" : "Describe your project\u2026";
+    if (!voice && recognizing) stopRec();
+  }
+  modeType.addEventListener("click", () => setMode(false));
+  modeVoice.addEventListener("click", () => setMode(true));
+
+  /* voice via browser speech recognition */
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let rec = null;
+  let recognizing = false;
+  let finalText = "";
+
+  if (!SR) {
+    modeVoice.disabled = true;
+    modeVoice.title = "Voice input needs Chrome, Edge, or Safari";
+  } else {
+    rec = new SR();
+    rec.interimResults = true;
+    rec.continuous = true;
+    rec.onresult = (e) => {
+      let interim = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript;
+        if (e.results[i].isFinal) finalText += t;
+        else interim += t;
+      }
+      input.value = (finalText + interim).trimStart();
+    };
+    rec.onerror = (e) => {
+      stopRec();
+      hint.textContent = e.error === "not-allowed"
+        ? "Microphone permission was blocked - allow it in the address bar and try again."
+        : "Voice input hiccuped (" + e.error + ") - try again or switch to Type.";
+    };
+    rec.onend = () => {
+      recognizing = false;
+      recBtn.classList.remove("recording");
+    };
+  }
+
+  function startRec() {
+    if (!rec || recognizing) return;
+    finalText = input.value ? input.value + " " : "";
+    hint.innerHTML = defaultHint;
+    recognizing = true;
+    recBtn.classList.add("recording");
+    rec.start();
+  }
+  function stopRec() {
+    if (rec && recognizing) rec.stop();
+    recognizing = false;
+    recBtn.classList.remove("recording");
+  }
+  recBtn.addEventListener("click", () => (recognizing ? stopRec() : startRec()));
 })();
 </script>
 
